@@ -65,7 +65,7 @@
 						<li id="conf_2">MYSQL Configuration</li>
 						<li id="conf_3">Database Configuration</li>
 						<?php
-						if(!defined("SUB_FOLDER") || SUB_FOLDER == ''){
+						if(!defined("SUB_FOLDER") || SUB_FOLDER == '' || substr(SUB_FOLDER,-1) != '/'){
 							echo '<li id="conf_4">Sub Folder Configuration</li>';
 						} ?>
 						<li id="conf_5">Smtp Configuration</li>
@@ -84,7 +84,7 @@
 						<td>
 						<table id="form" cellpadding="0" cellspacing="0" style="color:#000000;padding:0px;" align="center" width="400px">
 						<tr id="welcome">
-							<td colspan="2" style="padding-top:0px">
+							<td id="welcome_td" colspan="2" style="padding-top:0px">
 								<p style="font-family:Raleway;font-size:17px;">OrangeScrum is an open source project management tool. This configuration process is split up into some easy steps. Hit next to start configuration.</p>
 							</td>
 						</tr>
@@ -135,29 +135,22 @@
 	</html>
 	
 <?php
-
-if(defined("SUB_FOLDER") || SUB_FOLDER != ''){ ?>
+if(defined("SUB_FOLDER") || SUB_FOLDER != '' || !strstr(SUB_FOLDER,'/')){ ?>
 <script> 
 	var folder = '<?php echo SUB_FOLDER; ?>';
 </script>
 <?php }
 ?>
-<script type="text/javascript" src="<?php echo HTTP_ROOT; ?>js/jquery-1.10.1.min.js"></script>
+<script type="text/javascript" src="//code.jquery.com/jquery-1.10.1.min.js"></script>
 <script>
-$(document).ready(function(){
-	/* $.get("install.php?step=1", function(res){
-		document.getElementById('result').innerHTML += res;
-		$('#conf_1').addClass('active');
-		$('#nxt_btn').html("<button type='button' class='verify' value='Verify' onclick='check(2);'>Next </button>");
-		$('.progress-bar-inner').css({
-			'background':'blue',
-			'width':(100/6)+'px'
-		});
-		var txt = parseInt((100/6));
-		$('.progress-bar-txt').html(txt+"% Completed");
-	});*/
-}); 
 function check(step){
+	if(folder && folder.slice(-1) == '/'){
+		document.getElementById('welcome_td').innerHTML+='<p style="color:red">Please put "/" at the end of SUB_FOLDER in app/Config/constants.php.</p>';
+		document.getElementById('nxt_btn').innerHTML="<button type='button' class='verify' value='Verify' onclick='end_check()'>Try Again </button>";
+	}else if(folder == ''){
+		document.getElementById('welcome_td').innerHTML+='<p style="color:red">You have not set SUB_FOLDER in app/Config/constants.php.</p>';
+		document.getElementById('nxt_btn').innerHTML="";
+	}
 	var cmn_width = 0
 	if($('ul li').length == 7){
 		cmn_width = 100/6;
@@ -197,8 +190,6 @@ function check(step){
 				if($('#error').val() == 1){
 					$('#nxt_btn').html("<button type='button' class='verify' value='Verify' onclick='check(6);'>Try Again </button>");
 				}else{
-					$('#prev_btn').show();
-					$('#prev_btn').html("<button type='button' class='prev' value='previous' onclick='check("+(step-1)+");'>Prev </button>");
 					$('#nxt_btn').html("<button type='button' class='verify' value='Verify' onclick='end_check();'>Continue to Orangescrum </button>");
 				}
 			}else{
@@ -313,13 +304,13 @@ function smtp_ajax(){
 			}else{ 
 				$('#nxt_btn').html("<button type='button' class='verify' value='Verify' onclick='end_check();'>Continue to Orangescrum </button>");
 			}
-			if($('ul li:nth-child(5)').html() == "Smtp Configuration"){
+			/*if($('ul li:nth-child(5)').html() == "Smtp Configuration"){
 				$('#prev_btn').show();
 				$('#prev_btn').html("<button type='button' class='prev' value='previous' onclick='check(3);'>Prev </button>");
 			}else{
 				$('#prev_btn').show();
 				$('#prev_btn').html("<button type='button' class='prev' value='previous' onclick='check(4);'>Prev </button>");
-			}
+			}*/
 			$('#step_4').hide();
 			$('#result').show();
 			$('#form').hide();

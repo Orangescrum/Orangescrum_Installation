@@ -1,4 +1,5 @@
 <?php 
+ini_set('display_errors', 0);
 	switch($step){
 		case 1:
 			step_1();
@@ -21,46 +22,16 @@ function step_1(){
 	$version = phpversion();
 	$error = 0;
 if($version >= 5.3){ 
-		$html .='<tr>
-		<td align="center" style="padding-top:0px">
-			<img src="'.HTTP_ROOT.'img/yes1.png"/>
-		</td>
-		<td align="center">
-			<h4><span style="font-weight:normal;">PHP Version: '.$version.'</span></h4>
-		</td>
-		</tr>';
+		$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/yes1.png"/></td><td align="center"><h4><span style="font-weight:normal;">PHP Version: '.$version.'</span></h4></td></tr>';
 }else{
 	$error = 1;
-	$html .='<tr>
-		<td align="center" style="padding-top:0px">
-			<img src="'.HTTP_ROOT.'img/cross.png"/>
-			<input id="error" type="hidden" value="1"/>
-		</td>
-		<td align="center">
-			<h4><span style="font-weight:normal;">PHP Version: '.$version.'<br />Higher version(5.3) required.</span></h4>
-		</td>
-	</tr>';
+	$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/cross.png"/><input id="error" type="hidden" value="1"/></td><td align="center"><h4><span style="font-weight:normal;">Your PHP Version: '.$version.'<br />Higher PHP version(5.3) required.</span></h4></td></tr>';
  }
 if(_isCurl()){
-$html .='<tr>
-		<td align="center" style="padding-top:0px">
-			<img src="'.HTTP_ROOT.'img/yes1.png"/>
-		</td>
-		<td align="center">
-			<h4><span style="font-weight:normal;">Curl enabled.</span></h4>
-		</td>
-		</tr>';
+$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/yes1.png"/></td><td align="center"><h4><span style="font-weight:normal;">Curl enabled.</span></h4></td></tr>';
 } else {
 $error = 1;
-$html .='<tr>
-	<td align="center" style="padding-top:0px">
-			<img src="'.HTTP_ROOT.'img/cross.png"/>
-			<input id="error" type="hidden" value="1"/>
-	</td>
-	<td align="center">
-		<h4><span style="font-weight:normal;">Please Enable curl extension in php.ini file.</span></h4>
-	</td>
-</tr>';
+$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/cross.png"/><input id="error" type="hidden" value="1"/></td><td align="center"><h4><span style="font-weight:normal;">You have not enable curl extension. Please enable it in php.ini file.</span></h4></td></tr>';
 }
 $size = ini_get('upload_max_filesize');
 $last = substr($size, -1);
@@ -72,24 +43,9 @@ if($last == 'G'){
 }
 if($size < 200){
 	$error = 1;
-	$html .='<tr>
-	<td align="center" style="padding-top:0px">
-			<img src="'.HTTP_ROOT.'img/cross.png"/>
-			<input id="error" type="hidden" value="1"/>
-	</td>
-	<td align="center">
-		<h4><span style="font-weight:normal;">Please set upload_max_filesize 200MB in php.ini file.</span></h4>
-	</td>
-	</tr>';
+	$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/cross.png"/><input id="error" type="hidden" value="1"/></td><td align="center"><h4><span style="font-weight:normal;">Your upload_max_filesize is less than 200MB. Please increase it to 200B in php.ini file.</span></h4></td></tr>';
 }else {
-$html .='<tr>
-	<td align="center" style="padding-top:0px">
-		<img src="'.HTTP_ROOT.'img/yes1.png"/>
-	</td>
-	<td align="center">
-		<h4><span style="font-weight:normal;">upload_max_filesize is OK.</span></h4>
-	</td>
-	</tr>';
+$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/yes1.png"/></td><td align="center"><h4><span style="font-weight:normal;">upload_max_filesize is '.$size.'.</span></h4></td></tr>';
 }
 echo $html;exit;
 }
@@ -110,15 +66,13 @@ $mysqli = new mysqli($host, $login, $password);
 $html = '';
 
 if($conn){
-//echo mysql_get_server_info();
-$a = mysql_get_server_info();
 $c = $mysqli->server_info;
 $b = floatval($c);
 	if($b >= 4.1){
 		$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/yes1.png"/></td><td align="center"><h4><span style="font-weight:normal;">MySQL version: '.$b.'</span></h4></td></tr>';
 	}else{
-		$error = 1;
 		$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/cross.png"/><input id="error" type="hidden" value="1"/></td><td align="center"><h4><span style="font-weight:normal;">MySQL version: '.$b.' (Higher(4.1) Required).</span></h4></td></tr>';
+		$error = 1;
 	}
 }
 echo $html; exit;
@@ -136,45 +90,19 @@ $password = $config->default['password'];
 $database = $config->default['database'];
 $conn=mysqli_connect($host, $login, $password, $database);
 if($conn){
-	$html .='<tr>
-	<td align="center" style="padding-top:0px">
-		<img src="'.HTTP_ROOT.'img/yes1.png"/>
-	</td>
-	<td align="center">
-		<h4><span style="font-weight:normal;">Database has created.</span></h4>
-	</td></tr>';
+	$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/yes1.png"/></td><td align="center"><h4><span style="font-weight:normal;">Database has created.</span></h4></td></tr>';
 
 	$sql = "show tables from " .$database;
 	$x = mysqli_query($conn, $sql);
 	if(mysqli_num_rows($x) > 0){ 
-		$html .='<tr>
-	<td align="center" style="padding-top:0px">
-			<img src="'.HTTP_ROOT.'img/yes1.png"/>
-		</td>
-		<td align="center">
-			<h4><span style="font-weight:normal;">Database has imported Properly.</span></h4>
-		</td></tr>';
+		$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/yes1.png"/></td><td align="center"><h4><span style="font-weight:normal;">Database has imported successfully.</span></h4></td></tr>';
 } else { 
 	$error = 1;
-		$html .='<tr>
-	<td align="center" style="padding-top:0px">
-			<img src="'.HTTP_ROOT.'img/cross.png"/>
-			<input id="error" type="hidden" value="1"/>
-		</td>
-		<td align="center">
-			<h4><span style="font-weight:normal;">Database has not imported. Please Import the "database.sql" file to your database.</span></h4>
-		</td></tr>';
+		$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/cross.png"/><input id="error" type="hidden" value="1"/></td><td align="center"><h4><span style="font-weight:normal;">You have not imported database. Please Import the "database.sql" file to your database.</span></h4></td></tr>';
 }
 } else {
 	$error = 1;
-	$html .='<tr>
-	<td align="center" style="padding-top:0px">
-		<img src="'.HTTP_ROOT.'img/cross.png"/>
-		<input id="error" type="hidden" value="1"/>
-	</td>
-	<td align="center">
-		<h4><span style="font-weight:normal;">Database has not created.Please follow the installation manual to create a database.</span></h4>
-	</td></tr>';
+	$html .='<tr><td align="center" style="padding-top:0px"><img src="'.HTTP_ROOT.'img/cross.png"/><input id="error" type="hidden" value="1"/></td><td align="center"><h4><span style="font-weight:normal;">Database has not created.Please follow the installation manual to create a database.</span></h4></td></tr>';
 }
 echo $html; exit;
 }

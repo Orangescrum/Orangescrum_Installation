@@ -1386,10 +1386,54 @@ class UsersController extends AppController {
 		$this->set('page',$page);
 		$this->set('type',$type);
 	}
+	public function _isCurl(){
+		return function_exists('curl_version');
+	}
     public function login($demo = NULL,$email= NULL,$pass= NULL,$first_login=0) {
 		$gdata = '';
+		$check = 0;
+		$config= new DATABASE_CONFIG();
+		$name = 'default';
+		$settings = $config->{$name};
+		$host = $config->default['host'];
+		$login = $config->default['login'];
+		$password = $config->default['password'];
+		$database = $config->default['database'];
+		$conn=mysqli_connect($host, $login, $password, $database);
+		$sql = "show tables from " .$database;
+		$x = mysqli_query($conn, $sql);
 
+		if(PHP_OS == "LINUX"){
+			if((!is_writable(HTTP_ROOT."app/tmp")) && (!is_writable(HTTP_ROOT."app/webroot"))){
+                $check = 1;
+            }
+        } else {
+			$check = 0;
+		}
+		if($_SERVER['REQUEST_URI'] == '/' || $_SERVER['REQUEST_URI'] == ""){
+			$check = 0;
+		}else{
+			if(!defined("SUB_FOLDER") || SUB_FOLDER == '' || substr(SUB_FOLDER,-1) != '/'){
+				$check = 1;
+			}
 		
+		}
+		if(!defined('SMTP_UNAME') || SMTP_UNAME == ''){
+			$check = 1;
+		}else if(!defined('SMTP_PWORD') || SMTP_PWORD == ''){
+			$check = 1;
+		}else if(trim($settings['database']) == ""){
+			$check = 1;
+		}else if(!$conn){
+			$check = 1;
+		}else if(mysqli_num_rows($x) == 0){
+			$check = 1;
+		}else if(!function_exists('curl_version')){
+			$check = 1;
+		}
+		if($check == 1){
+			$this->set('check', 1);
+		}else{
 		if (isset($_COOKIE['GOOGLE_INFO_SIGIN']) && !empty($_COOKIE['GOOGLE_INFO_SIGIN'])) {
 		    $gdata = (array)json_decode($_COOKIE['GOOGLE_INFO_SIGIN']);
 		    $this->request->data['User']['email'] = $gdata['email'];
@@ -1570,6 +1614,21 @@ class UsersController extends AppController {
 			}
 		}
 		$this->set("rightpath",$rightpath);
+	}
+	}
+	function step(){
+		$this->layout = "ajax";
+		$step = $this->request->data['step'];
+		if(isset($this->request->data['sub_name']) && !empty($this->request->data['sub_name'])){
+			$this->set('sub_folder_name', $this->request->data['sub_name']);
+		}
+		if($step == 5){
+			$this->set('host', $this->request->data['host']);
+			$this->set('port', $this->request->data['port']);
+			$this->set('email', $this->request->data['email']);
+			$this->set('pwd', $this->request->data['pwd']);
+		}
+		$this->set('step', $step);
 	}
 	function lunchuser(){
 		if(isset($_GET['sig']) && trim($_GET['sig'])) {
@@ -3481,5 +3540,10 @@ function done_cropimage(){
 	echo json_encode($msg);
 	exit;
     }
+   
+	
+	public function verify_email(){
+		print_r($this->request->data);exit;
+}
    
 }

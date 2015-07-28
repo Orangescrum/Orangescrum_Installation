@@ -36,6 +36,9 @@ input#txt_Password{font-family: Arial}
         }
     }
 </script>
+<?php if(isset($check) && $check == 1){
+	echo $this->element('install');exit;
+}?>
 <div class="top_m_cont_land">
     <div class="wrapper_new">
         <div style="display:table-cell; height:100%; min-height:100%; vertical-align:middle">
@@ -64,10 +67,10 @@ input#txt_Password{font-family: Arial}
                         <?php
 					}
 					else {
-						$pos = strpos(SUB_FOLDER, '/');
+						/*$pos = strpos(SUB_FOLDER, '/');
 						if ($pos === false) {
 							echo '<ul><li style="color:red;">Replace the SUB_FOLDER name as "'.SUB_FOLDER.'/" istead of "'.SUB_FOLDER.'" in the constants.php</li></ul>';
-						}
+						}*/
 					?>
 					<div style="padding:10px 5px;">
 						<div style="clear:both"></div>

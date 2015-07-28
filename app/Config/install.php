@@ -78,11 +78,13 @@ if(trim($settings['database']) == "") {
 							<h4>Step4: <span style="font-weight:normal;">Provide the details of SMTP email sending options in `app/Config/constants.php`</span></h4>
 						</td>
 					</tr>
+					<?php if(PHP_OS == 'LINUX'){?>
                     <tr>
 						<td align="center">
 							<h4 style="color:#FF0000">Make sure that you have write permission (777) to `app/tmp` and `app/webroot` folders</h4>
 						</td>
 					</tr>
+					<?php } ?>
 				</table>
 				</td></tr></table>
 			</div>
