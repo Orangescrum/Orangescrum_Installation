@@ -1386,249 +1386,190 @@ class UsersController extends AppController {
 		$this->set('page',$page);
 		$this->set('type',$type);
 	}
-	public function _isCurl(){
-		return function_exists('curl_version');
-	}
     public function login($demo = NULL,$email= NULL,$pass= NULL,$first_login=0) {
 		$gdata = '';
-		$check = 0;
-		$config= new DATABASE_CONFIG();
-		$name = 'default';
-		$settings = $config->{$name};
-		$host = $config->default['host'];
-		$login = $config->default['login'];
-		$password = $config->default['password'];
-		$database = $config->default['database'];
-		$conn=mysqli_connect($host, $login, $password, $database);
-		$sql = "show tables from " .$database;
-		$x = mysqli_query($conn, $sql);
-		if(PHP_OS == "LINUX"){
-			if((!is_writable(HTTP_ROOT."app/tmp")) && (!is_writable(HTTP_ROOT."app/webroot"))){
-                $check = 1;
-            }
-        } else {
-			$check = 0;
-		}
-		if($_SERVER['REQUEST_URI'] == '/' || $_SERVER['REQUEST_URI'] == ""){
-			$check = 0;
-		}else{
-			if((!defined("SUB_FOLDER") || SUB_FOLDER == '')){
-				$check = 1;
-			}
-		}
-		if(!defined('SMTP_UNAME') || SMTP_UNAME == ''){
-			$check = 1;
-		}else if(!defined('SMTP_PWORD') || SMTP_PWORD == ''){
-			$check = 1;
-		}else if(trim($settings['database']) == ""){
-			$check = 1;
-		}else if(!$conn){
-			$check = 1;
-		}else if(mysqli_num_rows($x) == 0){
-			$check = 1;
-		}else if(!function_exists('curl_version')){
-			$check = 1;
-		}else{
-			$check = 0;
-		}
-		if($check == 1){
-			$this->set('check', 1);
-		}else{
-			if (isset($_COOKIE['GOOGLE_INFO_SIGIN']) && !empty($_COOKIE['GOOGLE_INFO_SIGIN'])) {
-				$gdata = (array)json_decode($_COOKIE['GOOGLE_INFO_SIGIN']);
-				$this->request->data['User']['email'] = $gdata['email'];
-			}else if(isset($_COOKIE['user_info']) && !empty($_COOKIE['user_info'])){
-				$gdata['email'] = $_COOKIE['user_info'];
-				$this->request->data['User']['email'] = $gdata['email'];
-				unset($_COOKIE['user_info']);
-				setcookie('user_info', '', time() - 60000,'/',DOMAIN_COOKIE,false,false);
-			} else if (isset($_COOKIE['GOOGLE_USER_INFOS']) && !empty($_COOKIE['GOOGLE_USER_INFOS'])) {
-				$google_user_infos =  json_decode($_COOKIE['GOOGLE_USER_INFOS'], true);
-				$_SESSION['GOOGLE_USER_INFO'] = $google_user_infos['GOOGLE_USER_INFO'];
-				setcookie('GOOGLE_USER_INFOS', '', time() - 60000,'/',DOMAIN_COOKIE,false,false);
-			}
-			if (isset($_SESSION['GOOGLE_USER_INFO']) && !empty($_SESSION['GOOGLE_USER_INFO'])) {
-				$this->request->data['User']['email'] = $_SESSION['GOOGLE_USER_INFO']['email'];	
-			}
-			
-			if(isset($this->request->data['User']['email'])) {
-				$this->request->data['User']['email'] = trim($this->request->data['User']['email']);
-			}
-			if(isset($this->request->data['User'])) {
-				$emailCheck = $this->request->data['User']['email'];
-			}
-			if(isset($_SESSION['GOOGLE_USER_INFO'])) {
-				$google_user_info = $_SESSION['GOOGLE_USER_INFO'];
-			}
-			
-			if(!empty($this->request->data) || !empty($email)) {
-					
-				$usrLogin = array();
-				if($email && $pass) {
-					$this->request->data['User']['email'] = $email;
-					if(strlen($pass) == 32) {
-						$this->request->data['User']['password'] = $pass;
-					}else {
-						$this->request->data['User']['password'] = md5($pass);
-					}
-					$this->User->unbindModel(array('hasAndBelongsToMany' => array('Project')));
-					$usrLogin = $this->User->find('first',array('conditions'=>array('User.email'=>$this->request->data['User']['email'],'User.password'=>$this->request->data['User']['password'],'User.isactive'=>1)));
-					$this->Session->write('Auth.User',$usrLogin['User']);	
-				} else if (isset($_SESSION['GOOGLE_USER_INFO']) && !empty($_SESSION['GOOGLE_USER_INFO'])) {
-					$this->User->unbindModel(array('hasAndBelongsToMany' => array('Project')));
-					$usrLogin = $this->User->find('first',array('conditions'=>array('User.email'=>$_SESSION['GOOGLE_USER_INFO']['email'],'User.isactive'=>1)));
-					$this->Session->write('Auth.User',$usrLogin['User']);
-					$access_token=$_SESSION['GOOGLE_USER_INFO']['access_token'];
-					unset($_SESSION['GOOGLE_USER_INFO']);
-				} else if(isset($gdata['email']) && !empty($gdata['email'])) {
-					$this->User->unbindModel(array('hasAndBelongsToMany' => array('Project')));
-					$usrLogin = $this->User->find('first',array('conditions'=>array('User.email'=>$this->request->data['User']['email'],'User.isactive'=>1)));
-					$this->Session->write('Auth.User',$usrLogin['User']);
-					unset($_SESSION['GOOGLE_USER_INFO']);
-					$access_token=$_COOKIE['token'];
-					setcookie('GOOGLE_INFO_SIGIN','',-365,'/',DOMAIN_COOKIE,false,false);
-				}
-				if(($this->Auth->login() || isset($usrLogin['User']['id'])) && $this->Auth->user('id')) {
-					if($usrLogin['User']['id']){
-						$this->saveUserInfo($usrLogin['User']['id'],$access_token,0);
-					}
-					if($this->Auth->user('isactive') == 2){
-						$cookie = array();
-						$this->Cookie->write('Auth.User', $cookie, '-2 weeks');
-						$this->Auth->logout();
-						$this->Session->write("SES_EMAIL",$this->request->data['User']['email']);
-						$this->Session->setFlash("Oops! this account has been deactivated", 'default', array('class'=>'error'));
-						
-						$this->redirect(HTTP_ROOT."users/login");
-					}
-					$this->User->id = $this->Auth->user('id');
-					$this->User->saveField('dt_last_login', GMT_DATETIME);
-					$this->User->saveField('query_string', '');
-					if($this->isiPad()) {
-						$user_sig = md5(uniqid(rand()).time());
-						$this->User->saveField('sig', $user_sig);
-					}
-					if(isset($this->request->data['User']['remember_me'])) {
-						setcookie('REMEMBER',1,time()+3600*24*7,'/',DOMAIN_COOKIE,false,false);
-						unset($this->request->data['User']['remember_me']);
-						$cookieTime = time()+3600*24*7;
-					}else {
-						$cookieTime = COOKIE_TIME;
-					}
-					if(!$this->Auth->user('dt_last_login')) {
-						setcookie('FIRST_LOGIN',1,$cookieTime,'/',DOMAIN_COOKIE,false,false);
-					}
-					if($_COOKIE['FIRST_LOGIN']) {
-						setcookie('FIRST_LOGIN','',-1,'/',DOMAIN_COOKIE,false,false);
-					}
-					setcookie('USER_UNIQ',$this->Auth->user('uniq_id'),$cookieTime,'/',DOMAIN_COOKIE,false,false);
-					setcookie('USERTYP',$this->Auth->user('istype'),$cookieTime,'/',DOMAIN_COOKIE,false,false);
-					setcookie('USERTZ',$this->Auth->user('timezone_id'),$cookieTime,'/',DOMAIN_COOKIE,false,false);
-					setcookie('USERSUB_TYPE',$this->Auth->user('usersub_type'),$cookieTime,'/',DOMAIN_COOKIE,false,false);
-					setcookie('IS_MODERATOR',$this->Auth->user('is_moderator'),$cookieTime,'/',DOMAIN_COOKIE,false,false);
-						
-					if($this->Auth->User("istype") == '1') {
-						setcookie('CURRENT_FILTER','latest',time()+3600*24*365,'/',DOMAIN_COOKIE,false,false);
-					}
-					
-					$redirect = HTTP_ROOT;
-					//Keeping track after successfully login.
-					$this->loadModel('UserLogin');
-					$user_login['user_id'] = $this->Auth->user('id');
-					$this->UserLogin->save($user_login);
 
-					if($_COOKIE['HELP'] == 1){
-						setcookie('HELP',0,$cookieTime,'/',DOMAIN_COOKIE,false,false);
-						$this->redirect(PROTOCOL.$seoArr[0].".".DOMAIN."help");
-					}
-					if($_COOKIE['CK_EMAIL_NOTIFICATION'] == 1){
-						setcookie('CK_EMAIL_NOTIFICATION',0,$cookieTime,'/',DOMAIN_COOKIE,false,false);
-						$this->redirect(PROTOCOL.$seoArr[0].".".DOMAIN."users/email_notifications");
-					}
-					if(isset($this->request->data['case_details']) && $this->request->data['case_details'] ){
-						$this->redirect($redirect."dashboard#details/".$this->request->data['case_details']);exit;
-					}
-					if(isset($this->request->data['User']['project']) && isset($this->request->data['User']['case'])){
-						$this->redirect($redirect."dashboard#details/".$this->request->data['User']['case']);
-					}elseif(isset($this->request->data['User']['project'])){
-						$this->redirect($redirect."dashboard/?project=".$this->request->data['User']['project']);
-					}elseif(isset($this->request->data['User']['file']) && $this->request->data['User']['file']){   
-						@$files=$this->request->data['User']['file'];
-						$fext = strtolower(substr(strrchr($files,"."),1));
-						$extList = array("jpg","jpeg","png","tif","gif","bmp","thm");
-						$this->redirect($redirect."easycases/download/".$this->request->data['User']['file']);
-					}elseif($update_email_redirect){
-							$this->redirect(HTTP_APP."users/profile");
-					}
-					$this->redirect($redirect);
+		
+		if (isset($_COOKIE['GOOGLE_INFO_SIGIN']) && !empty($_COOKIE['GOOGLE_INFO_SIGIN'])) {
+		    $gdata = (array)json_decode($_COOKIE['GOOGLE_INFO_SIGIN']);
+		    $this->request->data['User']['email'] = $gdata['email'];
+		}else if(isset($_COOKIE['user_info']) && !empty($_COOKIE['user_info'])){
+			$gdata['email'] = $_COOKIE['user_info'];
+			$this->request->data['User']['email'] = $gdata['email'];
+			unset($_COOKIE['user_info']);
+			setcookie('user_info', '', time() - 60000,'/',DOMAIN_COOKIE,false,false);
+		} else if (isset($_COOKIE['GOOGLE_USER_INFOS']) && !empty($_COOKIE['GOOGLE_USER_INFOS'])) {
+		    $google_user_infos =  json_decode($_COOKIE['GOOGLE_USER_INFOS'], true);
+		    $_SESSION['GOOGLE_USER_INFO'] = $google_user_infos['GOOGLE_USER_INFO'];
+		    setcookie('GOOGLE_USER_INFOS', '', time() - 60000,'/',DOMAIN_COOKIE,false,false);
+		}
+		if (isset($_SESSION['GOOGLE_USER_INFO']) && !empty($_SESSION['GOOGLE_USER_INFO'])) {
+		    $this->request->data['User']['email'] = $_SESSION['GOOGLE_USER_INFO']['email'];	
+		}
+		
+		if(isset($this->request->data['User']['email'])) {
+			$this->request->data['User']['email'] = trim($this->request->data['User']['email']);
+		}
+		if(isset($this->request->data['User'])) {
+			$emailCheck = $this->request->data['User']['email'];
+		}
+		if(isset($_SESSION['GOOGLE_USER_INFO'])) {
+			$google_user_info = $_SESSION['GOOGLE_USER_INFO'];
+		}
+		
+        if(!empty($this->request->data) || !empty($email)) {
+				
+			$usrLogin = array();
+			if($email && $pass) {
+				$this->request->data['User']['email'] = $email;
+				if(strlen($pass) == 32) {
+					$this->request->data['User']['password'] = $pass;
+				}else {
+					$this->request->data['User']['password'] = md5($pass);
 				}
-				else
-				{
+				$this->User->unbindModel(array('hasAndBelongsToMany' => array('Project')));
+				$usrLogin = $this->User->find('first',array('conditions'=>array('User.email'=>$this->request->data['User']['email'],'User.password'=>$this->request->data['User']['password'],'User.isactive'=>1)));
+				$this->Session->write('Auth.User',$usrLogin['User']);	
+			} else if (isset($_SESSION['GOOGLE_USER_INFO']) && !empty($_SESSION['GOOGLE_USER_INFO'])) {
+				$this->User->unbindModel(array('hasAndBelongsToMany' => array('Project')));
+				$usrLogin = $this->User->find('first',array('conditions'=>array('User.email'=>$_SESSION['GOOGLE_USER_INFO']['email'],'User.isactive'=>1)));
+				$this->Session->write('Auth.User',$usrLogin['User']);
+				$access_token=$_SESSION['GOOGLE_USER_INFO']['access_token'];
+				unset($_SESSION['GOOGLE_USER_INFO']);
+			} else if(isset($gdata['email']) && !empty($gdata['email'])) {
+				$this->User->unbindModel(array('hasAndBelongsToMany' => array('Project')));
+				$usrLogin = $this->User->find('first',array('conditions'=>array('User.email'=>$this->request->data['User']['email'],'User.isactive'=>1)));
+				$this->Session->write('Auth.User',$usrLogin['User']);
+				unset($_SESSION['GOOGLE_USER_INFO']);
+				$access_token=$_COOKIE['token'];
+				setcookie('GOOGLE_INFO_SIGIN','',-365,'/',DOMAIN_COOKIE,false,false);
+			}
+			if(($this->Auth->login() || isset($usrLogin['User']['id'])) && $this->Auth->user('id')) {
+				if($usrLogin['User']['id']){
+					$this->saveUserInfo($usrLogin['User']['id'],$access_token,0);
+				}
+				if($this->Auth->user('isactive') == 2){
+					$cookie = array();
+					$this->Cookie->write('Auth.User', $cookie, '-2 weeks');
+					$this->Auth->logout();
 					$this->Session->write("SES_EMAIL",$this->request->data['User']['email']);
-					//$this->Session->write("LOGIN_ERROR","Email or Password is invalid!");
-					$this->Session->setFlash("Email or Password is invalid!", 'default', array('class'=>'error'));
-					$_SESSION['GOOGLE_USER_INFO']=$google_user_info;
-					unset($_COOKIE['user_info']);
-					setcookie('GOOGLE_USER_INFOS', '', time() - 60000,'/',DOMAIN_COOKIE,false,false);
-					unset($_SESSION['GOOGLE_USER_INFO']);
-					$this->redirect(HTTP_APP."users/login");
+					$this->Session->setFlash("Oops! this account has been deactivated", 'default', array('class'=>'error'));
 					
+					$this->redirect(HTTP_ROOT."users/login");
+				}
+				$this->User->id = $this->Auth->user('id');
+				$this->User->saveField('dt_last_login', GMT_DATETIME);
+				$this->User->saveField('query_string', '');
+				if($this->isiPad()) {
+					$user_sig = md5(uniqid(rand()).time());
+					$this->User->saveField('sig', $user_sig);
+				}
+				if(isset($this->request->data['User']['remember_me'])) {
+					setcookie('REMEMBER',1,time()+3600*24*7,'/',DOMAIN_COOKIE,false,false);
+					unset($this->request->data['User']['remember_me']);
+					$cookieTime = time()+3600*24*7;
+				}else {
+					$cookieTime = COOKIE_TIME;
+				}
+				if(!$this->Auth->user('dt_last_login')) {
+					setcookie('FIRST_LOGIN',1,$cookieTime,'/',DOMAIN_COOKIE,false,false);
+				}
+				if($_COOKIE['FIRST_LOGIN']) {
+					setcookie('FIRST_LOGIN','',-1,'/',DOMAIN_COOKIE,false,false);
+				}
+				setcookie('USER_UNIQ',$this->Auth->user('uniq_id'),$cookieTime,'/',DOMAIN_COOKIE,false,false);
+				setcookie('USERTYP',$this->Auth->user('istype'),$cookieTime,'/',DOMAIN_COOKIE,false,false);
+				setcookie('USERTZ',$this->Auth->user('timezone_id'),$cookieTime,'/',DOMAIN_COOKIE,false,false);
+				setcookie('USERSUB_TYPE',$this->Auth->user('usersub_type'),$cookieTime,'/',DOMAIN_COOKIE,false,false);
+				setcookie('IS_MODERATOR',$this->Auth->user('is_moderator'),$cookieTime,'/',DOMAIN_COOKIE,false,false);
+					
+				if($this->Auth->User("istype") == '1') {
+					setcookie('CURRENT_FILTER','latest',time()+3600*24*365,'/',DOMAIN_COOKIE,false,false);
 				}
 				
+				$redirect = HTTP_ROOT;
+				//Keeping track after successfully login.
+				$this->loadModel('UserLogin');
+				$user_login['user_id'] = $this->Auth->user('id');
+				$this->UserLogin->save($user_login);
+
+				if($_COOKIE['HELP'] == 1){
+					setcookie('HELP',0,$cookieTime,'/',DOMAIN_COOKIE,false,false);
+					$this->redirect(PROTOCOL.$seoArr[0].".".DOMAIN."help");
+				}
+				if($_COOKIE['CK_EMAIL_NOTIFICATION'] == 1){
+					setcookie('CK_EMAIL_NOTIFICATION',0,$cookieTime,'/',DOMAIN_COOKIE,false,false);
+					$this->redirect(PROTOCOL.$seoArr[0].".".DOMAIN."users/email_notifications");
+				}
+				if(isset($this->request->data['case_details']) && $this->request->data['case_details'] ){
+					$this->redirect($redirect."dashboard#details/".$this->request->data['case_details']);exit;
+				}
+				if(isset($this->request->data['User']['project']) && isset($this->request->data['User']['case'])){
+					$this->redirect($redirect."dashboard#details/".$this->request->data['User']['case']);
+				}elseif(isset($this->request->data['User']['project'])){
+					$this->redirect($redirect."dashboard/?project=".$this->request->data['User']['project']);
+				}elseif(isset($this->request->data['User']['file']) && $this->request->data['User']['file']){   
+					@$files=$this->request->data['User']['file'];
+					$fext = strtolower(substr(strrchr($files,"."),1));
+					$extList = array("jpg","jpeg","png","tif","gif","bmp","thm");
+					$this->redirect($redirect."easycases/download/".$this->request->data['User']['file']);
+				}elseif($update_email_redirect){
+						$this->redirect(HTTP_APP."users/profile");
+				}
+				$this->redirect($redirect);
 			}
-				if(isset($demo) && $demo != "demo"){
-				if(strstr($demo, '___')){
-					$t_demo = explode('___',$demo);
-					$upd_user = $this->User->find('first',array('conditions'=>array('User.update_random'=>$t_demo[0])));
-					if($upd_user){
-						$t_emal = $upd_user['User']['email'];
-						if($t_demo[1] == "NOT_UPDATE"){
-							$this->set("update_email_message",'<span style="color:red">"'.$t_emal.'" email already exists!.</span>');
-						}else{				
-							$upd_user['User']['update_random'] = ''; 
-							$this->User->save($upd_user);
-							$this->set("update_email_message",'<span style="color:green">Now you can login using "'.$t_emal.'"</span>');
-						}
+			else
+			{
+				$this->Session->write("SES_EMAIL",$this->request->data['User']['email']);
+				//$this->Session->write("LOGIN_ERROR","Email or Password is invalid!");
+				$this->Session->setFlash("Email or Password is invalid!", 'default', array('class'=>'error'));
+				$_SESSION['GOOGLE_USER_INFO']=$google_user_info;
+				unset($_COOKIE['user_info']);
+				setcookie('GOOGLE_USER_INFOS', '', time() - 60000,'/',DOMAIN_COOKIE,false,false);
+				unset($_SESSION['GOOGLE_USER_INFO']);
+				$this->redirect(HTTP_APP."users/login");
+				
+			}
 			
+		}
+        	if(isset($demo) && $demo != "demo"){
+			if(strstr($demo, '___')){
+				$t_demo = explode('___',$demo);
+				$upd_user = $this->User->find('first',array('conditions'=>array('User.update_random'=>$t_demo[0])));
+				if($upd_user){
+					$t_emal = $upd_user['User']['email'];
+					if($t_demo[1] == "NOT_UPDATE"){
+						$this->set("update_email_message",'<span style="color:red">"'.$t_emal.'" email already exists!.</span>');
+					}else{				
+						$upd_user['User']['update_random'] = ''; 
+						$this->User->save($upd_user);
+						$this->set("update_email_message",'<span style="color:green">Now you can login using "'.$t_emal.'"</span>');
 					}
-				}
-			 }
-			$Company = ClassRegistry::init('Company');
-			$Company->recursive = -1;
-			$findCompany = $Company->find('first',array('conditions'=>array('Company.is_active'=>1),'fields'=>array('Company.id')));
-			$this->set("findCompany",$findCompany);
-			
-			$rightpath = 1;
-			if(!$findCompany['Company']['id']) {
-				if(trim($_SERVER['REQUEST_URI']) == "/" || trim($_SERVER['REQUEST_URI']) == "/" || trim($_SERVER['REQUEST_URI']) == "") {
-					$rightpath = 1;
-				}
-				else {
-					$url = $_SERVER['REQUEST_URI'];
-					$arr = explode("/", $url);
-					$sub_folder = $arr[1];
-					$this->set("sub_folder",$sub_folder);
-					if(SUB_FOLDER != $sub_folder."/") {
-						$rightpath = 0;
-					}
+		
 				}
 			}
-			$this->set("rightpath",$rightpath);
+		 }
+		$Company = ClassRegistry::init('Company');
+		$Company->recursive = -1;
+		$findCompany = $Company->find('first',array('conditions'=>array('Company.is_active'=>1),'fields'=>array('Company.id')));
+		$this->set("findCompany",$findCompany);
+		
+		$rightpath = 1;
+		if(!$findCompany['Company']['id']) {
+			if(trim($_SERVER['REQUEST_URI']) == "/" || trim($_SERVER['REQUEST_URI']) == "/" || trim($_SERVER['REQUEST_URI']) == "") {
+				$rightpath = 1;
+			}
+			else {
+				$url = $_SERVER['REQUEST_URI'];
+				$arr = explode("/", $url);
+				$sub_folder = $arr[1];
+				$this->set("sub_folder",$sub_folder);
+				if(SUB_FOLDER != $sub_folder."/") {
+					$rightpath = 0;
+				}
+			}
 		}
-	}
-	function step(){
-		$this->layout = "ajax";
-		$step = $this->request->data['step'];
-		if(isset($this->request->data['sub_name']) && !empty($this->request->data['sub_name'])){
-			$this->set('sub_folder_name', $this->request->data['sub_name']);
-		}
-		if($step == 5){
-			$this->set('host', $this->request->data['host']);
-			$this->set('port', $this->request->data['port']);
-			$this->set('email', $this->request->data['email']);
-			$this->set('pwd', $this->request->data['pwd']);
-		}
-		$this->set('step', $step);
+		$this->set("rightpath",$rightpath);
 	}
 	function lunchuser(){
 		if(isset($_GET['sig']) && trim($_GET['sig'])) {
@@ -3540,10 +3481,5 @@ function done_cropimage(){
 	echo json_encode($msg);
 	exit;
     }
-	
-	
-	public function verify_email(){
-		print_r($this->request->data);exit;
-	}
    
 }
